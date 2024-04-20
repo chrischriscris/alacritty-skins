@@ -4,8 +4,6 @@ use std::{
 };
 use toml_edit::DocumentMut;
 
-/// Supported platforms for Alacritty, along with an ordered list of possible
-/// configuration file locations.
 #[derive(Debug)]
 enum SupportedPlatform {
     Unix,
@@ -24,6 +22,7 @@ fn detect_platform() -> Result<SupportedPlatform, String> {
 /// a string with its content
 fn get_config_file_content(platform: SupportedPlatform) -> Result<String, String> {
     let mut config_files: Vec<PathBuf> = Vec::new();
+    let config_file_name = "alacritty.toml";
 
     if let SupportedPlatform::Unix = platform {
         // $XDG_CONFIG_HOME/alacritty/alacritty.toml
@@ -31,22 +30,27 @@ fn get_config_file_content(platform: SupportedPlatform) -> Result<String, String
         // $HOME/.config/alacritty/alacritty.toml
         // $HOME/.alacritty.toml
         let _ = env::var("XDG_CONFIG_HOME").inspect(|val| {
-            config_files.push(PathBuf::from(val.to_owned() + "/alacritty/alacritty.toml"));
-            config_files.push(PathBuf::from(val.to_owned() + "/alacritty.toml"));
+            config_files.push(PathBuf::from(format!(
+                "{}/alacritty/{}",
+                val, config_file_name
+            )));
+            config_files.push(PathBuf::from(format!("{}/{}", val, config_file_name)));
         });
 
         let _ = env::var("HOME").inspect(|val| {
-            config_files.push(PathBuf::from(
-                val.to_owned() + "/.config/alacritty/alacritty.toml",
-            ));
-            config_files.push(PathBuf::from(val.to_owned() + "/.alacritty.toml"));
+            config_files.push(PathBuf::from(format!(
+                "{}/.config/alacritty/{}",
+                val, config_file_name
+            )));
+            config_files.push(PathBuf::from(format!("{}/{}", val, config_file_name)));
         });
     } else if let SupportedPlatform::Windows = platform {
-        // %APPDATA$\alacritty\alacritty.toml
+        // %APPDATA%\alacritty\alacritty.toml
         let _ = env::var("APPDATA").inspect(|val| {
-            config_files.push(PathBuf::from(
-                val.to_owned() + "\\alacritty\\alacritty.toml",
-            ));
+            config_files.push(PathBuf::from(format!(
+                "{}\\alacritty\\{}",
+                val, config_file_name
+            )));
         });
     }
 
@@ -59,31 +63,15 @@ fn get_config_file_content(platform: SupportedPlatform) -> Result<String, String
     Err(String::from("Could not find configuration file"))
 }
 
-fn main() {
-    let platform = match detect_platform() {
-        Ok(value) => value,
-        Err(error) => {
-            eprintln!("Error: {}", error);
-            std::process::exit(1);
-        }
+fn try_main() -> Result<(), String> {
+    let platform = detect_platform()?;
+
+    let config = get_config_file_content(platform)?;
+
+    let mut parsed = match config.parse::<DocumentMut>() {
+        Ok(parsed) => parsed,
+        Err(error) => return Err(format!("Failed to parse configuration file: {}", error)),
     };
-
-    let config = match get_config_file_content(platform) {
-        Ok(content) => content,
-        Err(error) => {
-            eprintln!("Error: {}", error);
-            std::process::exit(1);
-        }
-    };
-
-    // Open the file and read it to a string
-    let mut parsed = config.parse::<DocumentMut>().expect("Invalid config file");
-
-    let imports = parsed["import"].as_array_mut().expect("Not an array ahaha");
-
-    imports.push("~/path/to/a/theme");
-
-    println!("{}", parsed);
 
     //  2.2 If it's not a toml return, only operate on toml
 
@@ -96,4 +84,18 @@ fn main() {
     //println!("Select a theme: {:?}", platform);
 
     // 5. Return when escaping
+    let imports = parsed["import"].as_array_mut().expect("Not an array ahaha");
+
+    imports.push("~/path/to/a/theme");
+
+    println!("{}", parsed);
+
+    Ok(())
+}
+
+fn main() {
+    if let Err(error) = try_main() {
+        eprintln!("Error: {}", error);
+        std::process::exit(1);
+    }
 }
