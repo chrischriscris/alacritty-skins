@@ -1,90 +1,113 @@
-use std::{
-    env, fs,
-    path::{Path, PathBuf},
+use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
+use ratatui::symbols::border;
+use ratatui::{
+    buffer::Buffer,
+    layout::{Alignment, Rect},
+    style::Stylize,
+    text::{Line, Text},
+    widgets::{
+        block::{Position, Title},
+        Block, Borders, Paragraph, Widget,
+    },
+    Frame,
 };
+use std::{fs, io};
 use toml_edit::DocumentMut;
 
-#[derive(Debug)]
-enum SupportedPlatform {
-    Unix,
-    Windows,
+mod alacritty;
+mod tui;
+
+#[derive(Debug, Default)]
+pub struct App {
+    counter: u32,
+    exit: bool,
 }
 
-fn detect_platform() -> Result<SupportedPlatform, String> {
-    return match env::consts::OS {
-        "linux" | "macos" => Ok(SupportedPlatform::Unix),
-        "windows" => Ok(SupportedPlatform::Windows),
-        other => Err(format!("Unsupported platform: {}", other)),
-    };
-}
+impl App {
+    pub fn run(&mut self, terminal: &mut tui::Tui) -> io::Result<()> {
+        while !self.exit {
+            terminal.draw(|frame| self.render_frame(frame))?;
+            self.handle_events()?;
+        }
 
-/// Gets the path to the Alacritty configuration file for the given platform
-fn get_config_file_path(platform: SupportedPlatform) -> Result<PathBuf, String> {
-    let mut possible_locations: Vec<String> = Vec::new();
-    let config_file_name = "alacritty.toml";
-
-    if let SupportedPlatform::Unix = platform {
-        // $XDG_CONFIG_HOME/alacritty/alacritty.toml
-        // $XDG_CONFIG_HOME/alacritty.toml
-        // $HOME/.config/alacritty/alacritty.toml
-        // $HOME/.alacritty.toml
-        let _ = env::var("XDG_CONFIG_HOME").inspect(|val| {
-            possible_locations.push(format!("{}/alacritty/{}", val, config_file_name));
-            possible_locations.push(format!("{}/{}", val, config_file_name));
-        });
-
-        let _ = env::var("HOME").inspect(|val| {
-            possible_locations.push(format!("{}/.config/alacritty/{}", val, config_file_name));
-            possible_locations.push(format!("{}/{}", val, config_file_name));
-        });
-    } else if let SupportedPlatform::Windows = platform {
-        // %APPDATA%\alacritty\alacritty.toml
-        let _ = env::var("APPDATA").inspect(|val| {
-            possible_locations.push(format!("{}\\alacritty\\{}", val, config_file_name));
-        });
+        Ok(())
     }
 
-    for config_file in possible_locations {
-        let path = Path::new(&config_file);
-        if path.exists() {
-            return Ok(path.to_path_buf());
+    fn render_frame(&self, frame: &mut Frame) {
+        frame.render_widget(self, frame.size());
+    }
+
+    fn handle_events(&mut self) -> io::Result<()> {
+        match event::read()? {
+            // it's important to check that the event is a key press event as
+            // crossterm also emits key release and repeat events on Windows.
+            Event::Key(key_event) if key_event.kind == KeyEventKind::Press => {
+                self.handle_key_event(key_event)
+            }
+            _ => {}
+        };
+
+        Ok(())
+    }
+
+    fn handle_key_event(&mut self, key_event: KeyEvent) {
+        match key_event.code {
+            KeyCode::Esc => self.exit(),
+            KeyCode::Down => self.decrement_counter(),
+            KeyCode::Up => self.increment_counter(),
+            _ => {}
         }
     }
 
-    Err(String::from("Could not find configuration file"))
-}
-
-// Gets all the theme available in a given themes directory
-fn get_themes() -> Result<Vec<PathBuf>, String> {
-    let mut themes_dir = std::env::current_dir().map_err(|e| e.to_string())?;
-    themes_dir.push("themes");
-
-    if !themes_dir.exists() {
-        return Err("Themes directory does not exist".to_string());
+    fn exit(&mut self) {
+        self.exit = true;
     }
 
-    let themes = fs::read_dir(themes_dir)
-        .map_err(|e| e.to_string())?
-        .map(|entry| entry.unwrap().path())
-        .filter(|path| path.extension().unwrap() == "toml")
-        .collect();
+    fn increment_counter(&mut self) {
+        self.counter = self.counter.saturating_add(1);
+    }
 
-    return Ok(themes);
-}
-
-fn format_theme(theme_path: &PathBuf) -> &str {
-    let filename = theme_path.file_name();
-
-    return match filename {
-        Some(filename) => filename.to_str().unwrap(),
-        None => theme_path.to_str().unwrap()
+    fn decrement_counter(&mut self) {
+        self.counter = self.counter.saturating_sub(1);
     }
 }
 
+impl Widget for &App {
+    fn render(self, area: Rect, buf: &mut Buffer) {
+        let title = Title::from(" Counter App Tutorial ".bold());
+        let instructions = Title::from(Line::from(vec![
+            " Decrement ".into(),
+            "<Down>".blue().bold(),
+            " Increment ".into(),
+            "<Up>".blue().bold(),
+            " Quit ".into(),
+            "<Esc> ".blue().bold(),
+        ]));
+        let block = Block::default()
+            .title(title.alignment(Alignment::Center))
+            .title(
+                instructions
+                    .alignment(Alignment::Center)
+                    .position(Position::Bottom),
+            )
+            .borders(Borders::ALL)
+            .border_set(border::THICK);
+
+        let counter_text = Text::from(vec![Line::from(vec![
+            "Value: ".into(),
+            self.counter.to_string().yellow(),
+        ])]);
+
+        Paragraph::new(counter_text)
+            .centered()
+            .block(block)
+            .render(area, buf);
+    }
+}
 
 fn try_main() -> Result<(), String> {
-    let platform = detect_platform()?;
-    let config_file = get_config_file_path(platform)?;
+    let platform = alacritty::detect_platform()?;
+    let config_file = alacritty::get_config_file_path(platform)?;
     let config_file = fs::read_to_string(config_file).expect("Unable to read file");
 
     let mut parsed = match config_file.parse::<DocumentMut>() {
@@ -103,10 +126,12 @@ fn try_main() -> Result<(), String> {
     // println!("Select a theme: {:?}", platform);
 
     // 5. Add the theme to the config file
-    let binding = get_themes()?;
-    let themes: Vec<&str>  = binding.iter().map(|t| format_theme(t)).collect();
+    let binding = alacritty::get_themes()?;
+    let themes: Vec<&str> = binding.iter().map(|t| alacritty::format_theme(t)).collect();
 
-    println!("{:?}", themes);
+    themes.iter().for_each(|theme| {
+        println!("{}", theme);
+    });
 
     // 5. Return when escaping
     let imports = parsed["import"].as_array_mut().expect("Not an array ahaha");
@@ -117,9 +142,7 @@ fn try_main() -> Result<(), String> {
     ));
 
     // 6. Save the file
-    fs::write("alacritty.toml", parsed.to_string()).expect("Unable to write file");
-
-    println!("{}", parsed);
+    // fs::write("alacritty.toml", parsed.to_string()).expect("Unable to write file");
 
     Ok(())
 }
@@ -129,4 +152,10 @@ fn main() {
         eprintln!("Error: {}", error);
         std::process::exit(1);
     }
+
+    let mut terminal = tui::init().unwrap();
+    let app_result = App::default().run(&mut terminal);
+    tui::restore().unwrap();
+
+    app_result.unwrap();
 }
