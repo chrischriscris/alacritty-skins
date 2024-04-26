@@ -1,5 +1,7 @@
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
+use ratatui::style::{Modifier, Style};
 use ratatui::symbols::border;
+use ratatui::widgets::{List, ListState};
 use ratatui::{
     buffer::Buffer,
     layout::{Alignment, Rect},
@@ -34,6 +36,19 @@ impl App {
     }
 
     fn render_frame(&self, frame: &mut Frame) {
+        // This should be stored outside of the function in your application state.
+        let mut state = ListState::default();
+        let items = ["Item 1", "Item 2", "Item 3"];
+        let list = List::new(items)
+            .block(Block::default().title("List").borders(Borders::ALL))
+            .highlight_style(Style::new().add_modifier(Modifier::REVERSED))
+            .highlight_symbol(">>")
+            .repeat_highlight_symbol(true);
+
+        let area = Rect::new(0, 0, 20, 10);
+
+        frame.render_stateful_widget(list, area, &mut state);
+
         frame.render_widget(self, frame.size());
     }
 
