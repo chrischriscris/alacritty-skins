@@ -37,6 +37,27 @@ impl App {
     }
 
     fn render_frame(&self, frame: &mut Frame) {
+        let canvas = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints(vec![Constraint::Length(1), Constraint::Percentage(100)])
+            .split(frame.size())[1];
+
+        let layout = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints(vec![Constraint::Percentage(40), Constraint::Percentage(60)])
+            .split(canvas);
+
+        let theme_selection = layout[0];
+        let _theme_preview = layout[1];
+
+        let area = Rect::new(0, 0, 8, 1);
+        let tabs = Tabs::new(vec!["Themes"])
+            .style(Style::default().bg(Color::Green).black())
+            .highlight_style(Style::default().yellow())
+            .select(2)
+            .divider(symbols::DOT);
+        frame.render_widget(tabs, area);
+
         // This should be stored outside of the function in your application state.
         let mut state = ListState::default();
         state.select(Some(self.counter as usize));
@@ -52,29 +73,8 @@ impl App {
             )
             .highlight_style(Style::new().bg(Color::Cyan).bold())
             .repeat_highlight_symbol(true);
-
-        let area = Rect::new(0, 0, 8, 1);
-        let tabs = Tabs::new(vec!["Themes"])
-            .style(Style::default().bg(Color::Green).black())
-            .highlight_style(Style::default().yellow())
-            .select(2)
-            .divider(symbols::DOT);
-
-        let layout = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints(vec![Constraint::Length(1), Constraint::Percentage(100)])
-            .split(frame.size());
-
-        let layout = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints(vec![Constraint::Percentage(40), Constraint::Percentage(60)])
-            .split(layout[1]);
-
-        let theme_selection = layout[0];
-        let _theme_preview = layout[1];
-
-        frame.render_widget(tabs, area);
         frame.render_stateful_widget(list, theme_selection, &mut state);
+        frame.render_widget(Block::default().title("Preview").borders(Borders::ALL).border_type(BorderType::Rounded), _theme_preview);
     }
 
     fn handle_events(&mut self) -> io::Result<()> {
