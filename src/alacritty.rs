@@ -17,6 +17,29 @@ pub fn detect_platform() -> Result<SupportedPlatform, String> {
     };
 }
 
+#[derive(Debug)]
+pub struct AlacrittyTheme {
+    pub path: PathBuf,
+    pub name: String,
+}
+
+impl AlacrittyTheme {
+    pub fn new(path: PathBuf) -> Self {
+        let name = format_theme(&path).to_string();
+
+        Self { path, name }
+    }
+}
+
+pub fn format_theme(theme_path: &PathBuf) -> &str {
+    let filename = theme_path.file_stem();
+
+    return match filename {
+        Some(filename) => filename.to_str().unwrap(),
+        None => theme_path.to_str().unwrap(),
+    };
+}
+
 /// Gets the path to the Alacritty configuration file for the given platform
 pub fn get_config_file_path(platform: SupportedPlatform) -> Result<PathBuf, String> {
     let mut possible_locations: Vec<String> = Vec::new();
@@ -53,11 +76,12 @@ pub fn get_config_file_path(platform: SupportedPlatform) -> Result<PathBuf, Stri
     Err(String::from("Could not find configuration file"))
 }
 
-// Gets all the theme available in a given themes directory
-pub fn get_themes() -> Result<Vec<PathBuf>, String> {
+// Gets all the themes available in a given themes directory
+pub fn get_themes() -> Result<Vec<AlacrittyTheme>, String> {
     let mut themes_dir = std::env::current_dir().map_err(|e| e.to_string())?;
     themes_dir.push("themes");
 
+    println!("{}", themes_dir.to_string_lossy());
     if !themes_dir.exists() {
         return Err("Themes directory does not exist".to_string());
     }
@@ -66,16 +90,8 @@ pub fn get_themes() -> Result<Vec<PathBuf>, String> {
         .map_err(|e| e.to_string())?
         .map(|entry| entry.unwrap().path())
         .filter(|path| path.extension().unwrap() == "toml")
+        .map(|path| AlacrittyTheme::new(path.to_path_buf()))
         .collect();
 
     return Ok(themes);
-}
-
-pub fn format_theme(theme_path: &PathBuf) -> &str {
-    let filename = theme_path.file_stem();
-
-    return match filename {
-        Some(filename) => filename.to_str().unwrap(),
-        None => theme_path.to_str().unwrap(),
-    };
 }

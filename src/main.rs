@@ -1,7 +1,8 @@
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
-use ratatui::style::{Modifier, Style};
-use ratatui::symbols::border;
-use ratatui::widgets::{List, ListState};
+use ratatui::layout::{Constraint, Direction, Layout};
+use ratatui::style::{Modifier, Style, Styled};
+use ratatui::symbols::{self, border};
+use ratatui::widgets::{List, ListState, Tabs};
 use ratatui::{
     buffer::Buffer,
     layout::{Alignment, Rect},
@@ -38,18 +39,42 @@ impl App {
     fn render_frame(&self, frame: &mut Frame) {
         // This should be stored outside of the function in your application state.
         let mut state = ListState::default();
-        let items = ["Item 1", "Item 2", "Item 3"];
+        state.select(Some(self.counter as usize));
+
+        let items = (1..10).map(|i| format!("Theme #{}", i.to_string()));
         let list = List::new(items)
-            .block(Block::default().title("List").borders(Borders::ALL))
-            .highlight_style(Style::new().add_modifier(Modifier::REVERSED))
-            .highlight_symbol(">>")
+            .block(
+                Block::default()
+                    .title("Select a theme from the list")
+                    .borders(Borders::ALL),
+            )
+            .highlight_style(Style::new().underlined())
             .repeat_highlight_symbol(true);
 
-        let area = Rect::new(0, 0, 20, 10);
+        let area = Rect::new(0, 0, 8, 1);
+        let tabs = Tabs::new(vec!["Themes"])
+            .style(
+                Style::default()
+                    .bg(ratatui::style::Color::White)
+                    .black()
+                    .bold(),
+            )
+            .highlight_style(Style::default().yellow())
+            .select(2)
+            .divider(symbols::DOT);
 
-        frame.render_stateful_widget(list, area, &mut state);
+        let layout = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints(vec![Constraint::Length(1), Constraint::Percentage(100)])
+            .split(frame.size())[1];
 
-        frame.render_widget(self, frame.size());
+        let layout = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints(vec![Constraint::Percentage(40)])
+            .split(layout);
+
+        frame.render_widget(tabs, area);
+        frame.render_stateful_widget(list, layout[0], &mut state);
     }
 
     fn handle_events(&mut self) -> io::Result<()> {
@@ -67,7 +92,7 @@ impl App {
 
     fn handle_key_event(&mut self, key_event: KeyEvent) {
         match key_event.code {
-            KeyCode::Esc => self.exit(),
+            KeyCode::Char('q') => self.exit(),
             KeyCode::Down => self.decrement_counter(),
             KeyCode::Up => self.increment_counter(),
             _ => {}
@@ -85,6 +110,26 @@ impl App {
     fn decrement_counter(&mut self) {
         self.counter = self.counter.saturating_sub(1);
     }
+}
+
+fn centered_rect(r: Rect, percent_x: u16, percent_y: u16) -> Rect {
+    let popup_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Percentage((100 - percent_y) / 2),
+            Constraint::Percentage(percent_y),
+            Constraint::Percentage((100 - percent_y) / 2),
+        ])
+        .split(r);
+
+    Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage((100 - percent_x) / 2),
+            Constraint::Percentage(percent_x),
+            Constraint::Percentage((100 - percent_x) / 2),
+        ])
+        .split(popup_layout[1])[1]
 }
 
 impl Widget for &App {
@@ -141,11 +186,9 @@ fn try_main() -> Result<(), String> {
     // println!("Select a theme: {:?}", platform);
 
     // 5. Add the theme to the config file
-    let binding = alacritty::get_themes()?;
-    let themes: Vec<&str> = binding.iter().map(|t| alacritty::format_theme(t)).collect();
-
+    let themes = alacritty::get_themes()?;
     themes.iter().for_each(|theme| {
-        println!("{}", theme);
+        println!("{:?}", theme);
     });
 
     // 5. Return when escaping
