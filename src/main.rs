@@ -1,8 +1,8 @@
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
 use ratatui::layout::{Constraint, Direction, Layout};
-use ratatui::style::{Modifier, Style, Styled};
+use ratatui::style::{Color, Modifier, Style, Styled};
 use ratatui::symbols::{self, border};
-use ratatui::widgets::{List, ListState, Tabs};
+use ratatui::widgets::{BorderType, List, ListState, Padding, Tabs};
 use ratatui::{
     buffer::Buffer,
     layout::{Alignment, Rect},
@@ -45,20 +45,17 @@ impl App {
         let list = List::new(items)
             .block(
                 Block::default()
-                    .title("Select a theme from the list")
-                    .borders(Borders::ALL),
+                    .title("Theme")
+                    .title("selection")
+                    .borders(Borders::ALL)
+                    .border_type(BorderType::Rounded),
             )
-            .highlight_style(Style::new().underlined())
+            .highlight_style(Style::new().bg(Color::Cyan).bold())
             .repeat_highlight_symbol(true);
 
         let area = Rect::new(0, 0, 8, 1);
         let tabs = Tabs::new(vec!["Themes"])
-            .style(
-                Style::default()
-                    .bg(ratatui::style::Color::White)
-                    .black()
-                    .bold(),
-            )
+            .style(Style::default().bg(Color::Green).black())
             .highlight_style(Style::default().yellow())
             .select(2)
             .divider(symbols::DOT);
@@ -66,15 +63,18 @@ impl App {
         let layout = Layout::default()
             .direction(Direction::Vertical)
             .constraints(vec![Constraint::Length(1), Constraint::Percentage(100)])
-            .split(frame.size())[1];
+            .split(frame.size());
 
         let layout = Layout::default()
             .direction(Direction::Horizontal)
-            .constraints(vec![Constraint::Percentage(40)])
-            .split(layout);
+            .constraints(vec![Constraint::Percentage(40), Constraint::Percentage(60)])
+            .split(layout[1]);
+
+        let theme_selection = layout[0];
+        let _theme_preview = layout[1];
 
         frame.render_widget(tabs, area);
-        frame.render_stateful_widget(list, layout[0], &mut state);
+        frame.render_stateful_widget(list, theme_selection, &mut state);
     }
 
     fn handle_events(&mut self) -> io::Result<()> {
