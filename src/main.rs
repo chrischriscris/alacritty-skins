@@ -66,6 +66,7 @@ impl App {
         let list = List::new(items)
             .block(
                 Block::default()
+                    .title("")
                     .title("Theme")
                     .title("selection")
                     .borders(Borders::ALL)
@@ -74,7 +75,14 @@ impl App {
             .highlight_style(Style::new().bg(Color::Cyan).bold())
             .repeat_highlight_symbol(true);
         frame.render_stateful_widget(list, theme_selection, &mut state);
-        frame.render_widget(Block::default().title("Preview").borders(Borders::ALL).border_type(BorderType::Rounded), _theme_preview);
+        frame.render_widget(
+            Block::default()
+                .title("")
+                .title("Preview")
+                .borders(Borders::ALL)
+                .border_type(BorderType::Rounded),
+            _theme_preview,
+        );
     }
 
     fn handle_events(&mut self) -> io::Result<()> {
@@ -93,8 +101,13 @@ impl App {
     fn handle_key_event(&mut self, key_event: KeyEvent) {
         match key_event.code {
             KeyCode::Char('q') => self.exit(),
-            KeyCode::Down => self.decrement_counter(),
-            KeyCode::Up => self.increment_counter(),
+
+            KeyCode::Up => self.decrement_counter(),
+            KeyCode::Down=> self.increment_counter(),
+
+            // Vim bindings
+            KeyCode::Char('k') => self.decrement_counter(),
+            KeyCode::Char('j') => self.increment_counter(),
             _ => {}
         }
     }
@@ -103,6 +116,8 @@ impl App {
         self.exit = true;
     }
 
+
+
     fn increment_counter(&mut self) {
         self.counter = self.counter.saturating_add(1);
     }
@@ -110,26 +125,6 @@ impl App {
     fn decrement_counter(&mut self) {
         self.counter = self.counter.saturating_sub(1);
     }
-}
-
-fn centered_rect(r: Rect, percent_x: u16, percent_y: u16) -> Rect {
-    let popup_layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Percentage((100 - percent_y) / 2),
-            Constraint::Percentage(percent_y),
-            Constraint::Percentage((100 - percent_y) / 2),
-        ])
-        .split(r);
-
-    Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage((100 - percent_x) / 2),
-            Constraint::Percentage(percent_x),
-            Constraint::Percentage((100 - percent_x) / 2),
-        ])
-        .split(popup_layout[1])[1]
 }
 
 impl Widget for &App {
