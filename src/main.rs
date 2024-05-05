@@ -72,7 +72,7 @@ impl App {
         frame.render_widget(
             Block::default()
                 .title("")
-                .title("Search")
+                .title("🔍 Search")
                 .borders(Borders::ALL)
                 .border_type(BorderType::Rounded),
             theme_selection_filter,
@@ -87,7 +87,7 @@ impl App {
             .block(
                 Block::default()
                     .title("")
-                    .title("Select theme")
+                    .title("🎨 Select theme")
                     .borders(Borders::ALL)
                     .border_type(BorderType::Rounded),
             )
@@ -97,7 +97,7 @@ impl App {
         frame.render_widget(
             Block::default()
                 .title("")
-                .title("Preview")
+                .title("👁️  Preview")
                 .borders(Borders::ALL)
                 .border_type(BorderType::Rounded),
             right,
