@@ -1,17 +1,12 @@
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
 use ratatui::layout::{Constraint, Direction, Layout};
-use ratatui::style::{Color, Modifier, Style, Styled};
-use ratatui::symbols::{self, border};
-use ratatui::widgets::{BorderType, List, ListState, Padding, Tabs};
+use ratatui::style::{Color, Style};
+use ratatui::symbols;
+use ratatui::widgets::{BorderType, List, ListState, Tabs};
 use ratatui::{
-    buffer::Buffer,
-    layout::{Alignment, Rect},
+    layout::Rect,
     style::Stylize,
-    text::{Line, Text},
-    widgets::{
-        block::{Position, Title},
-        Block, Borders, Paragraph, Widget,
-    },
+    widgets::{Block, Borders},
     Frame,
 };
 use std::{fs, io};
@@ -24,6 +19,14 @@ mod tui;
 pub struct App {
     counter: u32,
     exit: bool,
+    tabs: AppTab,
+    selected_tab: AppTab,
+}
+
+#[derive(Debug, Default)]
+pub enum AppTab {
+    #[default]
+    Themes,
 }
 
 impl App {
@@ -37,6 +40,14 @@ impl App {
     }
 
     fn render_frame(&self, frame: &mut Frame) {
+        let area = Rect::new(0, 0, 8, 1);
+        let tabs = Tabs::new(vec!["Themes"])
+            .style(Style::default().bg(Color::Green).black())
+            .highlight_style(Style::default().yellow())
+            .select(2)
+            .divider(symbols::DOT);
+        frame.render_widget(tabs, area);
+
         let canvas = Layout::default()
             .direction(Direction::Vertical)
             .constraints(vec![Constraint::Length(1), Constraint::Percentage(100)])
@@ -47,16 +58,25 @@ impl App {
             .constraints(vec![Constraint::Percentage(40), Constraint::Percentage(60)])
             .split(canvas);
 
-        let theme_selection = layout[0];
-        let _theme_preview = layout[1];
+        let left = layout[0];
+        let right = layout[1];
 
-        let area = Rect::new(0, 0, 8, 1);
-        let tabs = Tabs::new(vec!["Themes"])
-            .style(Style::default().bg(Color::Green).black())
-            .highlight_style(Style::default().yellow())
-            .select(2)
-            .divider(symbols::DOT);
-        frame.render_widget(tabs, area);
+        let theme_selection = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints(vec![Constraint::Length(3), Constraint::Percentage(100)])
+            .split(left);
+
+        let theme_selection_filter = theme_selection[0];
+        let theme_selection_list = theme_selection[1];
+
+        frame.render_widget(
+            Block::default()
+                .title("")
+                .title("Search")
+                .borders(Borders::ALL)
+                .border_type(BorderType::Rounded),
+            theme_selection_filter,
+        );
 
         // This should be stored outside of the function in your application state.
         let mut state = ListState::default();
@@ -67,21 +87,20 @@ impl App {
             .block(
                 Block::default()
                     .title("")
-                    .title("Theme")
-                    .title("selection")
+                    .title("Select theme")
                     .borders(Borders::ALL)
                     .border_type(BorderType::Rounded),
             )
             .highlight_style(Style::new().bg(Color::Cyan).bold())
             .repeat_highlight_symbol(true);
-        frame.render_stateful_widget(list, theme_selection, &mut state);
+        frame.render_stateful_widget(list, theme_selection_list, &mut state);
         frame.render_widget(
             Block::default()
                 .title("")
                 .title("Preview")
                 .borders(Borders::ALL)
                 .border_type(BorderType::Rounded),
-            _theme_preview,
+            right,
         );
     }
 
@@ -103,7 +122,7 @@ impl App {
             KeyCode::Char('q') => self.exit(),
 
             KeyCode::Up => self.decrement_counter(),
-            KeyCode::Down=> self.increment_counter(),
+            KeyCode::Down => self.increment_counter(),
 
             // Vim bindings
             KeyCode::Char('k') => self.decrement_counter(),
@@ -116,47 +135,12 @@ impl App {
         self.exit = true;
     }
 
-
-
     fn increment_counter(&mut self) {
-        self.counter = self.counter.saturating_add(1);
+        self.counter = self.counter.saturating_add(1) % 10;
     }
 
     fn decrement_counter(&mut self) {
         self.counter = self.counter.saturating_sub(1);
-    }
-}
-
-impl Widget for &App {
-    fn render(self, area: Rect, buf: &mut Buffer) {
-        let title = Title::from(" Counter App Tutorial ".bold());
-        let instructions = Title::from(Line::from(vec![
-            " Decrement ".into(),
-            "<Down>".blue().bold(),
-            " Increment ".into(),
-            "<Up>".blue().bold(),
-            " Quit ".into(),
-            "<Esc> ".blue().bold(),
-        ]));
-        let block = Block::default()
-            .title(title.alignment(Alignment::Center))
-            .title(
-                instructions
-                    .alignment(Alignment::Center)
-                    .position(Position::Bottom),
-            )
-            .borders(Borders::ALL)
-            .border_set(border::THICK);
-
-        let counter_text = Text::from(vec![Line::from(vec![
-            "Value: ".into(),
-            self.counter.to_string().yellow(),
-        ])]);
-
-        Paragraph::new(counter_text)
-            .centered()
-            .block(block)
-            .render(area, buf);
     }
 }
 
