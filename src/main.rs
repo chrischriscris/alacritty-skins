@@ -14,6 +14,8 @@ use toml_edit::DocumentMut;
 
 mod alacritty;
 mod tui;
+mod ui;
+mod actions;
 
 #[derive(Debug, Default)]
 pub struct App {
@@ -42,8 +44,8 @@ impl App {
     fn render_frame(&self, frame: &mut Frame) {
         let area = Rect::new(0, 0, 8, 1);
         let tabs = Tabs::new(vec!["Themes"])
-            .style(Style::default().bg(Color::Green).black())
-            .highlight_style(Style::default().yellow())
+            .style(Style::new().bg(Color::Green).black())
+            .highlight_style(Style::new().yellow())
             .select(2)
             .divider(symbols::DOT);
         frame.render_widget(tabs, area);
@@ -70,7 +72,7 @@ impl App {
         let theme_selection_list = theme_selection[1];
 
         frame.render_widget(
-            Block::default()
+            Block::new()
                 .title("")
                 .title("🔍 Search")
                 .borders(Borders::ALL)
@@ -88,14 +90,16 @@ impl App {
                 Block::default()
                     .title("")
                     .title("🎨 Select theme")
+                    .title_style(Style::new().white())
                     .borders(Borders::ALL)
+                    .border_style(Style::new().green())
                     .border_type(BorderType::Rounded),
             )
-            .highlight_style(Style::new().bg(Color::Cyan).bold())
+            .highlight_style(Style::new().bg(Color::Cyan).black())
             .repeat_highlight_symbol(true);
         frame.render_stateful_widget(list, theme_selection_list, &mut state);
         frame.render_widget(
-            Block::default()
+            Block::new()
                 .title("")
                 .title("👁️  Preview")
                 .borders(Borders::ALL)
