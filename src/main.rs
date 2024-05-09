@@ -12,10 +12,10 @@ use ratatui::{
 use std::{fs, io};
 use toml_edit::DocumentMut;
 
+mod action;
 mod alacritty;
 mod tui;
 mod ui;
-mod actions;
 
 #[derive(Debug, Default)]
 pub struct App {
