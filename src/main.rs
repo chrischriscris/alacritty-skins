@@ -15,7 +15,7 @@ use toml_edit::DocumentMut;
 mod action;
 mod alacritty;
 mod tui;
-mod ui;
+mod components;
 
 #[derive(Debug, Default)]
 pub struct App {
