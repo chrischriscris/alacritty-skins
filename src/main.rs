@@ -14,8 +14,8 @@ use toml_edit::DocumentMut;
 
 mod action;
 mod alacritty;
-mod tui;
 mod components;
+mod tui;
 
 #[derive(Debug, Default)]
 pub struct App {
@@ -74,7 +74,7 @@ impl App {
         frame.render_widget(
             Block::new()
                 .title("")
-                .title("🔍 Search")
+                .title("🔍 (f) Filter")
                 .borders(Borders::ALL)
                 .border_type(BorderType::Rounded),
             theme_selection_filter,
