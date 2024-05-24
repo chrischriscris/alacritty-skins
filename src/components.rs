@@ -1,14 +1,17 @@
-use crossterm::event::{KeyEvent, MouseEvent};
+use crossterm::event::{Event, KeyEvent, MouseEvent};
 use ratatui::{layout::Rect, Frame};
 
 use crate::action::Action;
-use crossterm::event::Event;
 
 mod app;
+mod appmain;
+mod themes;
 
-/// `Component` is a trait that represents a visual and interactive element of the user interface.
-/// Implementors of this trait can be registered with the main application loop and will be able to receive events,
-/// update state, and be rendered on the screen.
+/// `Component` is a trait that represents a visual and interactive element of
+/// the user interface.
+///
+/// Implementors of this trait can be registered with the main application loop
+/// and will be able to receive events, update state, and be rendered on the screen.
 pub trait Component {
     /// Initialize the component with a specified area if necessary.
     ///
@@ -33,13 +36,13 @@ pub trait Component {
     ///
     /// * `Result<Option<Action>>` - An action to be processed or none.
     fn handle_events(&mut self, event: Option<Event>) -> Result<Option<Action>, String> {
-        let r = match event {
+        let res = match event {
             Some(Event::Key(key_event)) => self.handle_key_events(key_event)?,
             Some(Event::Mouse(mouse_event)) => self.handle_mouse_events(mouse_event)?,
             _ => None,
         };
 
-        Ok(r)
+        Ok(res)
     }
 
     /// Handle key events and produce actions if necessary.
